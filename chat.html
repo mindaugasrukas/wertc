@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Group Chat</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: auto; padding: 20px; }
+        input, button { width: 100%; padding: 10px; margin: 5px 0; }
+        #chat { border: 1px solid #ddd; padding: 10px; height: 200px; overflow-y: auto; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function App() {
+            const [peerId, setPeerId] = useState(""); // Store my peer ID
+            const [name, setName] = useState(""); // Store user's name
+            const [users, setUsers] = useState({}); // Store connected users in the chat
+            const [messages, setMessages] = useState([]); // Store chat messages
+            const receivedMessages = useRef(new Set()); // Store received messages IDs to avoid duplicates (Fixed size)
+            const connections = useRef(new Map()); // Store active direct connections
+            const peer = useRef(null); // Store WebRTC Peer
+
+            useEffect(() => {
+                if (peer.current) return;
+
+                // Initialize WebRTC Peer
+                peer.current = new Peer(undefined, {
+                    debug: 3,
+                    config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
+                });
+
+                // Wait for WebRTC connection to establish
+                peer.current.on("open", id => {
+                    setPeerId(id);
+                    console.log("✅ My Peer ID:", id);
+                });
+
+                // Listen for incoming connections
+                peer.current.on("connection", conn => {
+                    handleConnection(conn);
+                });
+
+                return () => peer.current && peer.current.destroy();
+            }, [peer]);
+
+            // Directly connect to a peer
+            const connectToPeer = (name, remoteId) => {
+                if (!remoteId || connections.current.has(remoteId)) return;
+                console.log(name, "🔗 Connecting to:", remoteId);
+                const conn = peer.current.connect(remoteId, { metadata: { name } }); // metadata is shared between peers
+                handleConnection(conn);
+            };
+
+            // Handle incoming connection
+            const handleConnection = (conn) => {
+                conn.on("open", () => {
+                    console.log("🔗 Connected to:", conn.peer, conn.metadata);
+                    connections.current.set(conn.peer, conn);
+                    setUsers(prev => ({ ...prev, [conn.peer]: conn.metadata.name || "Anonymous" }));
+                    // forwardMessage({ forward: true, sender: conn.peer, connect: conn.metadata.name }); // TODO: Forward new user to others
+
+                    // Listen for incoming messages
+                    conn.on("data", data => {
+                        console.log(`📥 Message from ${data.sender}:`, data, receivedMessages.current);
+                        if (receivedMessages.current.has(data.id)) return;
+                        receivedMessages.current.add(data.id);
+                        setMessages(prev => [...prev, { sender: users[data.sender] || data.sender, text: data.message }]);
+                        forwardMessage(data, conn.peer);
+                    });
+
+                    // Handle disconnection
+                    conn.on("close", () => {
+                        console.log("❌ Disconnected from:", conn.peer);
+                        connections.current.delete(conn.peer);
+                        setUsers(prev => {
+                            const newUsers = { ...prev };
+                            delete newUsers[conn.peer];
+                            return newUsers;
+                        });
+                        // forwardMessage({ forward: true, sender: conn.peer, disconnect: conn.metadata.name }); // TODO: Forward disconnected user to others
+                    });
+                });
+            };
+
+            // Send message to all directly connected peers
+            const sendMessage = (message) => {
+                if (!message) return;
+
+                const data = {
+                    id: Math.random().toString(36).substr(2, 9), // Generate unique message ID
+                    message,
+                    sender: peer.current.id
+                };
+
+                receivedMessages.current.add(data.id);
+                connections.current.forEach(conn => conn.send(data));
+                setMessages(prev => [...prev, { sender: "You", text: message }]);
+            };
+
+            // Forward message to other peers
+            const forwardMessage = (data, sender) => {
+                connections.current.forEach(conn => {
+                    if (conn.peer !== data.sender && conn.peer !== sender) {
+                        console.log(`📡 Relaying message to ${conn.peer}`);
+                        conn.send(data);
+                    }
+                });
+            };
+
+            return (
+                <div>
+                    {name ?
+                        <Chat name={name} peerId={peerId} users={users} messages={messages} sendMessage={sendMessage} /> :
+                        <Connect peerId={peerId} setName={setName} connectToPeer={connectToPeer} />
+                    }
+                </div>
+            )
+        }
+
+        // Chat UI component
+        function Chat({ name, peerId, users, messages, sendMessage }) {
+            const messageRef = useRef(null);
+
+            useEffect(() => {
+                const chat = document.getElementById("chat");
+                chat.scrollTop = chat.scrollHeight;
+            }, [messages]);
+
+            return (
+                <div style={{ display: 'flex' }}>
+                    <div style={{ width: '25%', borderRight: '1px solid #ddd', paddingRight: '20px' }}>
+                        <h3>My Info</h3>
+                        <p><strong>Name:</strong> {name}</p>
+                        <p><strong>Peer ID:</strong> {peerId}</p>
+                        <h3>Connected Users</h3>
+                        <ul>
+                            {Object.entries(users).map(([id, username]) => (
+                                <li key={id}>
+                                    <strong>{username}</strong><br />
+                                    <span className="small">({id})</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div style={{ width: '75%', paddingLeft: '10px' }}>
+                        <h2>Group Chat</h2>
+                        <div id="chat">
+                            {messages.map((msg, index) => (
+                                <p key={index}><strong>{msg.sender}:</strong> {msg.text}</p>
+                            ))}
+                        </div>
+                        <form onSubmit={e => {
+                            e.preventDefault();
+                            sendMessage(messageRef.current.value);
+                            messageRef.current.value = "";
+                        }}>
+                            <input type="text" placeholder="Type a message..." ref={messageRef} />
+                            <button type="submit">Send</button>
+                        </form>
+                    </div>
+                </div>
+            )
+        }
+
+        // Connect UI component
+        function Connect({ peerId, setName, connectToPeer }) {
+            const nameRef = useRef(null);
+            const remoteIdRef = useRef(null);
+            return (
+                <div>
+                    <h2>Enter Your Name</h2>
+                    <input type="text" placeholder="Your name" ref={nameRef} />
+
+                    <p><strong>Your Peer ID:</strong> {peerId || "Generating..."}</p>
+                    <input
+                        type="text"
+                        placeholder="Enter Peer ID to Connect"
+                        ref={remoteIdRef}
+                    />
+                    <button onClick={() => {
+                        setName(nameRef.current.value.trim());
+                        connectToPeer(nameRef.current.value.trim(), remoteIdRef.current.value.trim());
+                    }}>Join Chat</button>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+</body>
+</html>
