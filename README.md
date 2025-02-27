@@ -15,7 +15,7 @@ It works locally or over the internet, requires no servers, and runs entirely on
 
 ## Usage
 
-1. Download the chat.html file.
+1. Download the [chat.html](chat.html) file.
 2. Open it in your browser.
 3. Share your peer ID with a friend and start chatting!
 
