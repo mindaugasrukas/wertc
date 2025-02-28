@@ -19,6 +19,11 @@ It works locally or over the internet, requires no servers, and runs entirely on
 2. Open it in your browser.
 3. Share your peer ID with a friend and start chatting!
 
+or
+
+1. Visit the [live demo](https://mindaugasrukas.github.io/wertc/chat.html).
+2. Share your peer ID with a friend and start chatting!
+
 ## Limitations
 
 - **No Persistence** - Messages are not stored. If you refresh the page, you lose the chat history.
