@@ -1,3 +1,6 @@
+<!--
+https://github.com/mindaugasrukas/wertc
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,7 +60,7 @@
             const connectToPeer = (name, remoteId) => {
                 if (!remoteId || connections.current.has(remoteId)) return;
                 console.log(name, "🔗 Connecting to:", remoteId);
-                const conn = peer.current.connect(remoteId, { metadata: { name } }); // metadata is shared between peers
+                const conn = peer.current.connect(remoteId, { metadata: { name } }); // metadata is shared between peers. TODO: remove this
                 handleConnection(conn);
             };
 
@@ -157,6 +160,7 @@
                         <h2>Group Chat</h2>
                         <div id="chat">
                             {messages.map((msg, index) => (
+                                // TODO: Show user name if available, otherwise show peer ID
                                 <p key={index}><strong>{msg.sender}:</strong> {msg.text}</p>
                             ))}
                         </div>
