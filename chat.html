@@ -81,6 +81,7 @@
                     // Handle disconnection
                     conn.on("close", () => {
                         console.log("❌ Disconnected from:", conn.peer);
+                        setMessages(prev => [...prev, { sender: "System", text: `user "${conn.metadata.name}" left the chat` }]);
                         connections.current.delete(conn.peer);
                         setUsers(prev => {
                             const newUsers = { ...prev };
