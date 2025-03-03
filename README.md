@@ -5,6 +5,8 @@ Just for Fun - Pushing the Limits of a Single HTML File!
 WeRTC is a self-contained, browser-based P2P chat application built entirely in a single HTML file.
 It works locally or over the internet, requires no servers, and runs entirely on WebRTC.
 
+If you want to read more about the story behind this project, check out the [LEARNING_EXPERIMENT.md](LEARNING_EXPERIMENT.md) file.
+
 ## Features
 
 - **No Servers Required** - Pure P2P communication.
@@ -15,7 +17,7 @@ It works locally or over the internet, requires no servers, and runs entirely on
 
 ## Usage
 
-1. Download the [chat.html](./chat.html) file.
+1. Download the [chat.html](chat.html) file.
 2. Open it in your browser.
 3. Share your peer ID with a friend and start chatting!
 

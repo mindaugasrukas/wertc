@@ -1,1 +1,4 @@
 theme: jekyll-theme-tactile
+relative_links:
+  enabled:     true
+  collections: false
