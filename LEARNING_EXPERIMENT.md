@@ -1,3 +1,9 @@
+---
+layout: page
+title: Learning Experiment
+permalink: /learning-experiment/
+---
+
 # Learning Experiment: Limits of Cross-Browser Communication
 This is a living document. It will be updated as we learn more. For tracking changes, please follow the [git repository](https://github.com/mindaugasrukas/wertc).
 
