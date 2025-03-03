@@ -1,5 +1,4 @@
 ---
-layout: page
 title: Learning Experiment
 permalink: /learning-experiment/
 ---
