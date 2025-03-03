@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Unified WebRTC (Single File, Manual, No STUN)</title>
+  <style>
+    body { font-family: sans-serif; max-width: 700px; margin: auto; }
+    section { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    textarea { width: 100%; }
+    h2 { margin-top: 0; }
+    label { font-weight: bold; }
+    #chatLog p { margin: 0; }
+  </style>
+</head>
+<body>
+
+<h1>Unified WebRTC – Manual Offer/Answer</h1>
+
+<p>
+  Open this file in two separate browser windows or devices.
+  One can be <em>Initiator</em>, the other <em>Responder</em>, or they can even switch roles.
+  Copy-paste Offer/Answer and ICE candidates manually to establish a connection.
+</p>
+
+<section>
+  <h2>Configuration</h2>
+  <label for="roleSelect">Select Role:</label>
+  <select id="roleSelect">
+    <option value="initiator">Initiator (Peer creates Offer)</option>
+    <option value="responder">Responder (Peer accepts Offer)</option>
+  </select>
+  <button onclick="initPeerConnection()">Initialize</button>
+
+  <p>
+    <strong>Note:</strong> If you're the Initiator, you'll create an Offer.
+    If you're the Responder, you'll accept a pasted Offer and then create an Answer.
+  </p>
+</section>
+
+<section>
+  <h2>Local Description</h2>
+  <textarea id="localDesc" rows="5" placeholder="Local SDP appears here"></textarea><br/>
+  <button onclick="createLocalDescription()">Create Local Description</button>
+  <p>
+    <em>
+      If you're <strong>Initiator</strong>, clicking this will create an <code>offer</code>.<br/>
+      If you're <strong>Responder</strong>, be sure to paste the <code>remote offer</code> first, then click this to create an <code>answer</code>.
+    </em>
+  </p>
+</section>
+
+<section>
+  <h2>Remote Description</h2>
+  <textarea id="remoteDesc" rows="5" placeholder="Paste remote offer/answer here"></textarea>
+  <br/>
+  <button onclick="acceptRemoteDescription()">Accept Remote Description</button>
+  <p>
+    After copying the <code>offer/answer</code> from the other side, paste it here and click "Accept Remote Description".
+  </p>
+</section>
+
+<section>
+  <h2>ICE Candidates</h2>
+    <div style="flex:1;">
+      <label>Local ICE Candidates (copy these):</label>
+      <div id="localCandidates" style="border:1px solid #ddd; padding:5px; min-height:60px;"></div>
+    </div>
+    <br />
+    <div style="flex:1;">
+      <label>Paste Remote ICE Candidate:</label>
+      <textarea id="remoteCandidate" rows="5"></textarea>
+      <button onclick="addRemoteCandidate()">Add Candidate</button>
+    </div>
+  <p><em>Keep copying new candidates between peers as they appear.</em></p>
+</section>
+
+<section>
+  <h2>Chat</h2>
+  <div id="chatLog" style="border:1px solid #ddd; height:150px; overflow:auto; padding:5px;"></div>
+  <input type="text" id="chatInput" placeholder="Type a message..."/>
+  <button onclick="sendChatMessage()">Send</button>
+</section>
+
+<script>
+let pc;
+let dataChannel;
+let role = null; // 'initiator' or 'responder'
+let isInitialized = false;
+
+/**
+ * Initialize the RTCPeerConnection based on the selected role.
+ * No STUN servers -> only 'host' candidates (works on same LAN or direct IP).
+ */
+function initPeerConnection() {
+  role = document.getElementById("roleSelect").value;
+  if (isInitialized) {
+    console.warn("Already initialized. Reload page to change role.");
+    return;
+  }
+
+  pc = new RTCPeerConnection({
+    iceServers: [] // No STUN for simplicity
+  });
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      const candJSON = JSON.stringify(event.candidate);
+      document.getElementById("localCandidates").innerHTML += `<p>${candJSON}</p>`;
+    }
+  };
+
+  // If we are the initiator, we create a data channel.
+  // If we're the responder, we wait for ondatachannel.
+  if (role === "initiator") {
+    dataChannel = pc.createDataChannel("chatChannel");
+    setupDataChannel(dataChannel, "Initiator");
+  } else {
+    pc.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      setupDataChannel(dataChannel, "Responder");
+    };
+  }
+
+  isInitialized = true;
+  console.log(`Peer connection initialized as ${role}.`);
+}
+
+/**
+ * Set up the data channel to send/receive chat messages.
+ */
+function setupDataChannel(channel, label) {
+  channel.onopen = () => {
+    console.log(`${label} data channel open!`);
+    appendChatLog(`[${label} Channel] open`);
+  };
+  channel.onmessage = (evt) => {
+    console.log(`${label} received:`, evt.data);
+    appendChatLog(`Friend: ${evt.data}`);
+  };
+}
+
+/**
+ * Creates the local SDP description (offer if initiator, answer if responder).
+ */
+async function createLocalDescription() {
+  if (!pc || !isInitialized) {
+    alert("Please click 'Initialize' first.");
+    return;
+  }
+  try {
+    if (role === "initiator") {
+      // Create OFFER
+      let offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      document.getElementById("localDesc").value = JSON.stringify(pc.localDescription);
+      console.log("Created OFFER:", pc.localDescription);
+    } else {
+      // Responder: we must have a REMOTE offer first
+      if (!pc.remoteDescription) {
+        alert("Paste the remote offer first, then accept it. After that, create answer.");
+        return;
+      }
+      // Create ANSWER
+      let answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      document.getElementById("localDesc").value = JSON.stringify(pc.localDescription);
+      console.log("Created ANSWER:", pc.localDescription);
+    }
+  } catch (err) {
+    console.error("Error creating local description", err);
+  }
+}
+
+/**
+ * Accept the remote offer or answer (whichever the other peer created).
+ */
+async function acceptRemoteDescription() {
+  if (!pc || !isInitialized) {
+    alert("Please click 'Initialize' first.");
+    return;
+  }
+  let remoteSDP = document.getElementById("remoteDesc").value;
+  if (!remoteSDP) {
+    alert("No remote SDP to accept!");
+    return;
+  }
+  try {
+    let descObject = JSON.parse(remoteSDP);
+    await pc.setRemoteDescription(descObject);
+    console.log("Remote description set successfully:", descObject);
+  } catch (err) {
+    console.error("Error setting remote description", err);
+  }
+}
+
+/**
+ * Add remote ICE candidate (paste from the other peer).
+ */
+async function addRemoteCandidate() {
+  if (!pc || !isInitialized) {
+    alert("Initialize first!");
+    return;
+  }
+  let candidateText = document.getElementById("remoteCandidate").value;
+  if (!candidateText) return;
+  try {
+    let candidateObj = JSON.parse(candidateText);
+    await pc.addIceCandidate(candidateObj);
+    console.log("Remote candidate added:", candidateObj);
+  } catch (err) {
+    console.error("Error adding remote candidate", err);
+  }
+}
+
+/**
+ * Send a chat message if data channel is open.
+ */
+function sendChatMessage() {
+  if (!dataChannel || dataChannel.readyState !== "open") {
+    appendChatLog("Data channel not open. Can't send message.");
+    return;
+  }
+  let msg = document.getElementById("chatInput").value;
+  if (msg) {
+    dataChannel.send(msg);
+    appendChatLog(`You: ${msg}`);
+    document.getElementById("chatInput").value = "";
+  }
+}
+
+/**
+ * Helper to append messages to chat log.
+ */
+function appendChatLog(text) {
+  const logDiv = document.getElementById("chatLog");
+  logDiv.innerHTML += `<p>${text}</p>`;
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+</script>
+</body>
+</html>
