@@ -46,7 +46,8 @@ WebRTC requires a signaling server to exchange connection information between pe
 * How to discover other peers?
 * How to exchange connection information between peers?
 * How to handle NAT traversal?
-* This is a simple prototype ignoring all the challenges. To start somewhere.
+
+This is a simple prototype ignoring all the challenges. To start somewhere.
 
 ```
     // TODO: code here
