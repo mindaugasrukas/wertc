@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>P2P Chat Experiment</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <h2>P2P Chat</h2>
+    <p>Your Peer ID: <span id="peerId">Loading...</span></p>
+    <input type="text" id="remoteId" placeholder="Enter Peer ID">
+    <button onclick="connectToPeer()">Connect</button>
+
+    <div id="chat"></div>
+    <input type="text" id="message" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        var peer = new Peer();
+        let conn;
+
+        peer.on("open", id => {
+            document.getElementById("peerId").innerText = id;
+        });
+
+        peer.on("connection", connection => {
+            conn = connection;
+            setupConnection();
+        });
+
+        function connectToPeer() {
+            const remoteId = document.getElementById("remoteId").value;
+            conn = peer.connect(remoteId);
+            setupConnection();
+        }
+
+        function setupConnection() {
+            conn.on("open", () => {
+                displayMessage("Connected to friend: " + conn.peer);
+                conn.on("data", (data) => displayMessage("Friend: " + data));
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById("message").value;
+            if (conn) {
+                conn.send(message);
+                displayMessage("You: " + message);
+                document.getElementById("message").value = "";
+            }
+        }
+
+        function displayMessage(msg) {
+            const chat = document.getElementById("chat");
+            chat.innerHTML += "<p>" + msg + "</p>";
+        }
+    </script>
+</body>
+</html>

@@ -4,56 +4,145 @@ permalink: /learning-experiment/
 ---
 
 # Learning Experiment: Limits of Cross-Browser Communication
+
 This is a living document. It will be updated as we learn more. For tracking changes, please follow the [git repository](https://github.com/mindaugasrukas/wertc).
 
 ## Introduction
-Once I was discussing about the limits of cross-browser communication.
-The standard approach is to use a server as a mediator - a.k.a. server-client architecture.
-However, we were curious can we create a cross-browser application that works without a server.
 
-Hence this learning-experiment was born.
+Once, I was discussing the limits of cross-browser communication.
+The standard approach is to use a server as a mediator—commonly known as the server-client architecture.
+However, we started wondering: can we create a cross-browser application that works without a server?
 
-Where this could go or "what could go wrong"?
+Hence this learning experiment was born.
+
+Where could this lead? Or more intriguingly — what could go wrong?
 
 ## Goal
-The goal is to learn the limits of direct communication between browsers without a server.
-As an example application we were wondering if it's possible to create a chat application that works on modern browsers, without deployment on a server (like a static HTML file), where communication happens directly between browsers. The chat application should allow users to send messages to each other.
+
+The primary goal of this experiment is to explore the limits of direct browser-to-browser communication without relying on a server.
+
+As a practical example, we considered building a chat application that:
+* Works on modern browsers.
+* Runs as a standalone HTML file.
+* Does not require deployment on a server.
+* Enables direct peer-to-peer (P2P) communication between users.
+* Does not rely on external dependencies (if possible).
+* Allows users to send messages to each other.
 
 ## Initial requirements
 
+To keep the experiment focused, we defined the following requirements:
+
 * The application should work in modern browsers (Chrome, Firefox, Safari, Edge).
-* Application should be distributable as a single HTML file.
-* It should have as fewer external dependencies as possible - if possible rely only on the browser's built-in APIs.
-* It should work without a server.
+* The application should be distributable as a single HTML file.
+* It should have minimal external dependencies, relying only on built-in browser APIs.
+* It should work without a dedicated server.
 
 ## Step 1: Questions to answer
+
 Before we start, we need to answer some questions:
 
-1. What are the existing technologies for applications that works from a single HTML file?
-2. What are the existing technologies for direct communication between browsers?
+1. What existing technologies allow applications to run from a single HTML file?
+2. What existing technologies enable direct communication between browsers?
 
-### 1.1: What are the existing technologies for applications that works from a single HTML file?
-Browsers are powerful application platforms. They have built-in APIs (like IndexedDB, Web Storage, Service Workers, Web Workers, etc.), they can run JavaScript code, and they can render HTML and CSS. That allows developers to create applications that works locally from a single HTML file.
+### 1.1: What Technologies Enable Single-File Applications?
 
-The core technology here is JavaScript.
+Modern browsers are powerful application platforms. They have built-in APIs and support:
 
-JavaScript applications can send network requests, read and write data to local browser storage, and do many other things.
+* JavaScript (the core language for browser-based applications).
+* IndexedDB, Local Storage, and Service Workers (for local data storage and offline capabilities).
+* Web Workers (for multi-threading within the browser).
+* Web Components (for modular UI design).
 
-### 1.2: What are the existing technologies for direct communication between browsers?
-Browsers have built-in APIs for direct communication between browsers - WebRTC. It allows browsers to communicate directly with each other.
+This allows developers to build fully functional applications that run directly from a single HTML file.
+
+### 1.2: What Technologies Enable Direct Browser-to-Browser Communication?
+
+WebRTC (Web Real-Time Communication) is a built-in browser API designed for direct P2P communication. It enables:
+* Audio & video streaming
+* Data transfer (files, messages, etc.)
+* Low-latency networking
+
+Unlike traditional web communication (which requires a server), WebRTC allows browsers to communicate directly with each other.
 
 ## Step 2: Build a simple prototype
-Everything sounds simple: build a JavaScript application that uses WebRTC to communicate directly between browsers.
 
-WebRTC requires a signaling server to exchange connection information between peers. While WebRTC doesn't require a server to send data between peers (ignoring NAT cases), it requires a server for peer discovery.
+Everything sounds simple:
 
-### Challenges:
-* How to discover other peers?
-* How to exchange connection information between peers?
-* How to handle NAT traversal?
+* Build a JavaScript application that uses WebRTC.
+* Allow browsers to communicate directly with each other.
 
-This is a simple prototype ignoring all the challenges. To start somewhere.
+However, WebRTC has a major limitation: it requires a signaling server to exchange connection information between peers. While WebRTC does not require a server for actual data transfer, it needs one for peer discovery.
+
+### Challenges to Solve
+
+* How do peers discover each other?
+* How do they exchange connection information?
+* How do we handle NAT traversal?
+
+At this stage, we will ignore all these challenges and focus on getting something simple to work first.
+
+## Prototype: WebRTC-Based P2P Chat (Simplified Version)
+
+Share your Peer ID with a friend to connect and start chatting!
 
 ```
-    // TODO: code here
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>P2P Chat Experiment</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <h2>P2P Chat</h2>
+    <p>Your Peer ID: <span id="peerId">Loading...</span></p>
+    <input type="text" id="remoteId" placeholder="Enter Peer ID">
+    <button onclick="connectToPeer()">Connect</button>
+
+    <div id="chat"></div>
+    <input type="text" id="message" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        var peer = new Peer();
+        let conn;
+
+        peer.on("open", id => {
+            document.getElementById("peerId").innerText = id;
+        });
+
+        peer.on("connection", connection => {
+            conn = connection;
+            setupConnection();
+        });
+
+        function connectToPeer() {
+            const remoteId = document.getElementById("remoteId").value;
+            conn = peer.connect(remoteId);
+            setupConnection();
+        }
+
+        function setupConnection() {
+            conn.on("open", () => {
+                displayMessage("Connected to friend: " + conn.peer);
+                conn.on("data", (data) => displayMessage("Friend: " + data));
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById("message").value;
+            if (conn) {
+                conn.send(message);
+                displayMessage("You: " + message);
+                document.getElementById("message").value = "";
+            }
+        }
+
+        function displayMessage(msg) {
+            const chat = document.getElementById("chat");
+            chat.innerHTML += "<p>" + msg + "</p>";
+        }
+    </script>
+</body>
+</html>
 ```
