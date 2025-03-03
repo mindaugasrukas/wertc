@@ -1,5 +1,5 @@
 theme: jekyll-theme-tactile
-baseurl: /webrtc
+baseurl: /wertc
 relative_links:
   enabled:     true
   collections: false
