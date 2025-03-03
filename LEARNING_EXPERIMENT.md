@@ -149,9 +149,6 @@ Share your Peer ID with a friend to connect and start chatting!
 
 ### How does it work?
 
-We are using the PeerJS library to simplify the WebRTC connection process, but we also could use the native WebRTC API.
-This library provides a signaling server that helps peers discover each other.
-
 Here's an architectural diagram of the application:
 
 ```
@@ -169,15 +166,16 @@ Here's an architectural diagram of the application:
             +--------+--------+
 ```
 
-1) Browser A connects to a STUN server to get its public IP address and port.
-2) Browser B connects to the same STUN server to get its public IP address and port.
-3) Browser A and Browser B exchange connection information via the signaling server and establish a direct P2P connection.
+1. Browser A connects to a STUN server to get its public IP address and port.
+2. Browser B connects to the same STUN server to get its public IP address and port.
+3. Browser A and Browser B exchange connection information via the signaling server and establish a direct P2P connection.
 
 ### Limitations
 
 We imeediately observed some limitations:
 
 * WebRTC requires a signaling server for peer discovery. Can we avoid this?
+* It requires external libraries (like PeerJS).
 * After testing it out it doesn't work on Chrome out of the box, because of security restrictions. Can we work around this?
 * The chat is not persistent. If you refresh the page, you lose the chat history. How and where can we store messages?
 * Both peers must be online at the same time to chat. Can we implement offline messaging?
@@ -185,10 +183,16 @@ We imeediately observed some limitations:
 
 ## Step 3: Addressing Limitations
 
-###  Avoiding the Signaling Server
+### Avoiding the Signaling Server
 
 WebRTC allows peers to exchange connection information directly without a signaling server.
 However, this requires a way for peers to discover each other and exchange initial connection details.
 For example, peers could share their connection details via a third-party service (like email, SMS, or QR codes).
 
-See the [prototype](chat_copy_paste.html) for a simple example of how this could work.
+✅ See the [prototype](chat_copy_paste.html) for a simple example of how this could work.
+
+### Avoiding External Libraries
+
+We are using the PeerJS library to simplify the WebRTC connection process, but we also could use the native WebRTC API. Essentially, PeerJS is a wrapper around the WebRTC API that provides a signaling server for peer discovery. This library provides a signaling server that helps peers discover each other.
+
+✅ For simplicity reasons, we will keep using PeerJS for now on and assume PeerJS as not an external dependency.
